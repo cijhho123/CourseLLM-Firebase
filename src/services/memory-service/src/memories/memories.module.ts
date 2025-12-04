@@ -3,6 +3,7 @@ import { MemoriesController } from "./memories.controller";
 import { MemoriesService } from "./memories.service";
 import { Mem0Service } from "./mem0.service";
 import { MockChatService, MockUserService, MockMessageService } from "../common/mocks";
+import { GoogleCloudMemoryRepository } from "../database/google-cloud-memory.repository";
 
 @Module({
   controllers: [MemoriesController],
@@ -20,6 +21,10 @@ import { MockChatService, MockUserService, MockMessageService } from "../common/
     {
       provide: 'IMessageService',
       useClass: MockMessageService,
+    },
+    {
+      provide: 'IMemoryRepository',
+      useClass: GoogleCloudMemoryRepository,
     },
   ],
   exports: [MemoriesService, Mem0Service],

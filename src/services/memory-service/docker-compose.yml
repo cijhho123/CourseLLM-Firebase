@@ -1,28 +1,32 @@
 version: '3.8'
 
+# Memory Service with PostgreSQL (simulates Google Cloud SQL)
+#
+# Usage:  docker compose up
+#
+# This runs PostgreSQL locally to simulate Google Cloud SQL for testing.
+# The GoogleCloudMemoryRepository connects to it directly.
+
 services:
-  # PostgreSQL Database
+  # PostgreSQL (simulates Google Cloud SQL)
   postgres:
     image: postgres:15-alpine
-    container_name: memory-service-postgres
+    container_name: memory-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: memory_service
+      POSTGRES_DB: memory_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 5
-    networks:
-      - memory-service-network
-    restart: unless-stopped
 
-  # Memory Service Application
+  # Memory Service
   memory-service:
     build:
       context: .
@@ -31,16 +35,19 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    env_file:
-      - .env
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 3001
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/memory_service?schema=public
+      # GoogleCloudMemoryRepository config (connects to local PostgreSQL)
+      GCP_SQL_HOST: postgres
+      GCP_SQL_PORT: 5432
+      GCP_SQL_USER: postgres
+      GCP_SQL_PASSWORD: postgres
+      GCP_SQL_DATABASE: memory_db
+      # Mem0.ai API Key (leave empty for testing DB only)
+      MEM0_API_KEY: ""
     ports:
       - "3001:3001"
-    networks:
-      - memory-service-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
@@ -49,10 +56,5 @@ services:
       retries: 3
       start_period: 40s
 
-networks:
-  memory-service-network:
-    driver: bridge
-
 volumes:
   postgres_data:
-    driver: local

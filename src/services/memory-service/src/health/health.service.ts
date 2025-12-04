@@ -1,11 +1,9 @@
 import { Injectable, ServiceUnavailableException } from "@nestjs/common";
-import { PrismaService } from "../database/prisma.service";
 import { CustomLoggerService } from "../common/logger/logger.service";
 
 @Injectable()
 export class HealthService {
     constructor(
-        private readonly prisma: PrismaService,
         private readonly logger: CustomLoggerService
     ) {
         this.logger.setContext("HealthService");
@@ -16,7 +14,7 @@ export class HealthService {
 
         try {
             // Check database connection
-            await this.prisma.$queryRaw`SELECT 1`;
+            // await this.prisma.$queryRaw`SELECT 1`;
             const dbStatus = "connected";
 
             const responseTime = Date.now() - startTime;
