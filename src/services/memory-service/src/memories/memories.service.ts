@@ -135,7 +135,44 @@ export class MemoriesService {
             this.logger.info(
                 `Fetching memories for user ${userId} from database`
             );
-            const memories = await this.memoryRepository.findByUserId(userId);
+            let memories = await this.memoryRepository.findByUserId(userId);
+
+            // If no local memories, try to sync from mem0.ai
+            if (memories.length === 0) {
+                this.logger.info(
+                    `No local memories found for user ${userId}, checking mem0.ai...`
+                );
+
+                const mem0Memories = await this.mem0Service.getAllMemories(userId);
+
+                if (mem0Memories.length > 0) {
+                    this.logger.info(
+                        `Found ${mem0Memories.length} memories in mem0.ai for user ${userId}, saving to database...`
+                    );
+
+                    // Save mem0 memories to local database
+                    const savedMemories = await Promise.all(
+                        mem0Memories.map((mem) =>
+                            this.memoryRepository.create({
+                                userId: userId,
+                                content: mem.memory,
+                                mem0MemoryId: mem.id,
+                                sourceChatIds: [],
+                            })
+                        )
+                    );
+
+                    this.logger.info(
+                        `Synced ${savedMemories.length} memories from mem0.ai to database for user ${userId}`
+                    );
+
+                    memories = savedMemories;
+                } else {
+                    this.logger.info(
+                        `No memories found in mem0.ai for user ${userId}`
+                    );
+                }
+            }
 
             this.logger.info(
                 `Successfully retrieved ${memories.length} memories for user ${userId}`

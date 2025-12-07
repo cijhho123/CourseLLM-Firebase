@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { MemoriesController } from "./memories.controller";
 import { MemoriesService } from "./memories.service";
 import { Mem0Service } from "./mem0.service";
-import { MockChatService, MockUserService, MockMessageService } from "../common/mocks";
+import { MockChatService, MockUserService } from "../common/mocks";
 import { GoogleCloudMemoryRepository } from "../database/google-cloud-memory.repository";
 
 @Module({
@@ -17,10 +17,6 @@ import { GoogleCloudMemoryRepository } from "../database/google-cloud-memory.rep
     {
       provide: 'IUserService',
       useClass: MockUserService,
-    },
-    {
-      provide: 'IMessageService',
-      useClass: MockMessageService,
     },
     {
       provide: 'IMemoryRepository',

@@ -103,3 +103,5 @@ Direct PostgreSQL connection to Google Cloud SQL.
 | Chat Service | `findChatWithMessages(chatId)` | Yes |
 | User Service | `findUser(userId)` | Yes |
 | Memory Repository | `create(data)`, `findByUserId(userId)` | Yes |
+
+---

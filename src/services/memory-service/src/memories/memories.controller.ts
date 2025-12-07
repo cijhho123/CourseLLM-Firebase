@@ -48,8 +48,8 @@ export class MemoriesController {
   @ApiOperation({ summary: "Get all synthesized memories for a user" })
   @ApiParam({
     name: "userID",
-    description: "User identifier",
-    example: "user_abc123",
+    description: "User identifier (valid test users: user_123, user_789)",
+    example: "user_123",
   })
   @ApiResponse({
     status: 200,

@@ -6,6 +6,11 @@ import { AllExceptionsFilter } from "./common/filters/http-exception.filter";
 import { CustomLoggerService } from "./common/logger/logger.service";
 
 async function bootstrap() {
+  // Set Data Connect emulator host if not already set (for local development)
+  if (!process.env.DATA_CONNECT_EMULATOR_HOST && process.env.NODE_ENV !== "production") {
+    process.env.DATA_CONNECT_EMULATOR_HOST = "127.0.0.1:9399";
+  }
+
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
   });
