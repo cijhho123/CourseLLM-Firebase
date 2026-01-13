@@ -375,8 +375,59 @@ CREATE INDEX idx_memories_user_id ON memories(user_id);
 
 ---
 
+## 11. Running the Service
+
+### Step 1: Start the Data Connect Emulator
+
+From the **root** `CourseLLM-Firebase` directory:
+
+```bash
+firebase emulators:start --only dataconnect
+```
+
+This will:
+- Start the Data Connect emulator on `127.0.0.1:9399`
+- Start a local PostgreSQL instance for the emulator
+- Generate TypeScript code for database operations
+
+### Step 2: Start the Memory Service
+
+From the `src/services/memory-service` directory:
+
+**Option A: Development Mode (recommended for testing)**
+```bash
+npm run start:dev
+```
+
+**Option B: Standard Start**
+```bash
+npm run start
+```
+
+**Option C: Docker (production-like)**
+```bash
+docker-compose up
+```
+
+### Step 3: Access Swagger UI
+
+Once the service is running, access the API documentation at:
+```
+http://localhost:3001/api/docs
+```
+
+### Environment Variables
+
+Ensure `.env` file exists in `src/services/memory-service/` with:
+
+```env
+MEM0_API_KEY=your_mem0_api_key
+DATA_CONNECT_EMULATOR_HOST=127.0.0.1:9399
+```
+
 ## Appendix: Related Research
 
 - **mem0.ai Documentation:** https://docs.mem0.ai/api-reference
 - **Memory in AI Survey:** https://github.com/Elvin-Yiming-Du/Survey_Memory_in_AI
 - **Context Engineering:** https://rlancemartin.github.io/2025/06/23/context_engineering/
+

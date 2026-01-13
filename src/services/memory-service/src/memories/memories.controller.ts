@@ -44,35 +44,34 @@ export class MemoriesController {
         return this.memoriesService.synthesizeMemories(dto);
     }
 
-    @Get("users/:userID/memories")
-    @ApiOperation({ summary: "Get all synthesized memories for a user" })
-    @ApiParam({
-        name: "userID",
-        description: "User identifier",
-        example: "user_abc123",
-    })
-    @ApiResponse({
-        status: 200,
-        description: "Memories retrieved successfully",
-        schema: {
-            example: {
-                memories: [
-                    {
-                        memoryID: "mem_xyz789",
-                        content:
-                            "Student demonstrates understanding of calculus concepts",
-                        createdAt: "2025-11-20T10:30:00.000Z",
-                        relatedChats: ["chat_abc123"],
-                    },
-                ],
-            },
-        },
-    })
-    @ApiResponse({
-        status: 404,
-        description: "User not found",
-    })
-    async getUserMemories(@Param("userID") userID: string) {
-        return this.memoriesService.getUserMemories(userID);
-    }
+  @Get("users/:userID/memories")
+  @ApiOperation({ summary: "Get all synthesized memories for a user" })
+  @ApiParam({
+    name: "userID",
+    description: "User identifier (valid test users: user_123, user_789)",
+    example: "user_123",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Memories retrieved successfully",
+    schema: {
+      example: {
+        memories: [
+          {
+            memoryID: "mem_xyz789",
+            content: "Student demonstrates understanding of calculus concepts",
+            createdAt: "2025-11-20T10:30:00.000Z",
+            relatedChats: ["chat_abc123"],
+          },
+        ],
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: "User not found",
+  })
+  async getUserMemories(@Param("userID") userID: string) {
+    return this.memoriesService.getUserMemories(userID);
+  }
 }

@@ -2,8 +2,7 @@ import { Injectable, NotFoundException, Inject } from "@nestjs/common";
 import { Mem0Service } from "./mem0.service";
 import { SynthesizeMemoriesDto } from "./dto/synthesize-memories.dto";
 import { CustomLoggerService } from "../common/logger/logger.service";
-import { IChatService, IUserService } from "../common/interfaces";
-import { PrismaService } from "../database/prisma.service";
+import { IChatService, IUserService, IMemoryRepository } from "../common/interfaces";
 
 @Injectable()
 export class MemoriesService {
@@ -12,7 +11,8 @@ export class MemoriesService {
         private readonly chatService: IChatService,
         @Inject("IUserService")
         private readonly userService: IUserService,
-        private readonly prisma: PrismaService,
+        @Inject("IMemoryRepository")
+        private readonly memoryRepository: IMemoryRepository,
         private readonly mem0Service: Mem0Service,
         private readonly logger: CustomLoggerService
     ) {
@@ -75,19 +75,17 @@ export class MemoriesService {
                 metadata
             );
 
-            // Store memory metadata in PostgreSQL
+            // Store memory metadata via repository
             this.logger.info(
                 `Storing ${synthesizedMemories.length} memories in database`
             );
             const memoryRecords = await Promise.all(
                 synthesizedMemories.map((mem) =>
-                    this.prisma.memory.create({
-                        data: {
-                            userId: chat.userId,
-                            content: mem.memory,
-                            mem0MemoryId: mem.id,
-                            sourceChatIds: [dto.chatID],
-                        },
+                    this.memoryRepository.create({
+                        userId: chat.userId,
+                        content: mem.memory,
+                        mem0MemoryId: mem.id,
+                        sourceChatIds: [dto.chatID],
                     })
                 )
             );
@@ -133,20 +131,48 @@ export class MemoriesService {
                 throw new NotFoundException(`User ${userId} not found`);
             }
 
-            // Get memories from PostgreSQL
+            // Get memories via repository
             this.logger.info(
                 `Fetching memories for user ${userId} from database`
             );
-            const memories = await this.prisma.memory.findMany({
-                where: { userId },
-                orderBy: { createdAt: "desc" },
-                select: {
-                    id: true,
-                    content: true,
-                    createdAt: true,
-                    sourceChatIds: true,
-                },
-            });
+            let memories = await this.memoryRepository.findByUserId(userId);
+
+            // If no local memories, try to sync from mem0.ai
+            if (memories.length === 0) {
+                this.logger.info(
+                    `No local memories found for user ${userId}, checking mem0.ai...`
+                );
+
+                const mem0Memories = await this.mem0Service.getAllMemories(userId);
+
+                if (mem0Memories.length > 0) {
+                    this.logger.info(
+                        `Found ${mem0Memories.length} memories in mem0.ai for user ${userId}, saving to database...`
+                    );
+
+                    // Save mem0 memories to local database
+                    const savedMemories = await Promise.all(
+                        mem0Memories.map((mem) =>
+                            this.memoryRepository.create({
+                                userId: userId,
+                                content: mem.memory,
+                                mem0MemoryId: mem.id,
+                                sourceChatIds: [],
+                            })
+                        )
+                    );
+
+                    this.logger.info(
+                        `Synced ${savedMemories.length} memories from mem0.ai to database for user ${userId}`
+                    );
+
+                    memories = savedMemories;
+                } else {
+                    this.logger.info(
+                        `No memories found in mem0.ai for user ${userId}`
+                    );
+                }
+            }
 
             this.logger.info(
                 `Successfully retrieved ${memories.length} memories for user ${userId}`

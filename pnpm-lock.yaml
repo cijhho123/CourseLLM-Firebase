@@ -163,6 +163,9 @@ importers:
       genkit-cli:
         specifier: ^1.20.0
         version: 1.23.0(@types/node@20.19.25)
+      globals:
+        specifier: ^16.5.0
+        version: 16.5.0
       postcss:
         specifier: ^8
         version: 8.5.6
@@ -3191,6 +3194,10 @@ packages:
     resolution: {integrity: sha512-r8hpEjiQEYlF2QU0df3dS+nxxSIreXQS1qRhMJM0Q5NDdR386C7jb7Hwwod8Fgiuex+k0GFjgft18yvxm5XoCQ==}
     engines: {node: '>=12'}
     deprecated: Glob versions prior to v9 are no longer supported
+
+  globals@16.5.0:
+    resolution: {integrity: sha512-c/c15i26VrJ4IRt5Z89DnIzCGDn9EcebibhAOjw5ibqEHsE1wLUgkPn9RDmNcUKyU87GeaL633nyJ+pplFR2ZQ==}
+    engines: {node: '>=18'}
 
   google-auth-library@8.9.0:
     resolution: {integrity: sha512-f7aQCJODJFmYWN6PeNKzgvy9LI2tYmXnzpNDHEjG5sDNPgGb2FXQyTBnXeSH+PAtpKESFD+LmHw3Ox3mN7e1Fg==}
@@ -8358,6 +8365,8 @@ snapshots:
       minimatch: 5.1.6
       once: 1.4.0
     optional: true
+
+  globals@16.5.0: {}
 
   google-auth-library@8.9.0:
     dependencies:

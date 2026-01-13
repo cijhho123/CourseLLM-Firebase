@@ -84,4 +84,5 @@ ENV NODE_ENV=production
 ENV PORT=3001
 
 # Start the application directly
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+# Note: GoogleCloudMemoryRepository auto-creates tables via ensureTableExists()
+CMD ["node", "dist/main.js"]
