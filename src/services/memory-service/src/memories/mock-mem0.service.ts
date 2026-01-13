@@ -20,7 +20,9 @@ export class MockMem0Service {
 
     constructor(private readonly logger: CustomLoggerService) {
         this.logger.setContext("MockMem0Service");
-        this.logger.info("MockMem0Service initialized (using in-memory mock data)");
+        this.logger.info(
+            "MockMem0Service initialized (using in-memory mock data)"
+        );
     }
 
     async addMemories(
@@ -33,7 +35,9 @@ export class MockMem0Service {
         );
 
         // Filter out system messages
-        const filteredMessages = messages.filter((msg) => msg.role !== "system");
+        const filteredMessages = messages.filter(
+            (msg) => msg.role !== "system"
+        );
 
         if (filteredMessages.length === 0) {
             this.logger.warn(
@@ -46,13 +50,21 @@ export class MockMem0Service {
         const newMemories: Mem0Memory[] = [];
 
         // Extract learning preferences and patterns from messages
-        const userMessages = filteredMessages.filter(msg => msg.role === "user");
-        const assistantMessages = filteredMessages.filter(msg => msg.role === "assistant");
+        const userMessages = filteredMessages.filter(
+            (msg) => msg.role === "user"
+        );
+        const assistantMessages = filteredMessages.filter(
+            (msg) => msg.role === "assistant"
+        );
 
         // Create memories based on conversation patterns
         if (userMessages.length > 0) {
             // Memory about learning preferences
-            if (userMessages.some(msg => msg.content.toLowerCase().includes("prefer"))) {
+            if (
+                userMessages.some((msg) =>
+                    msg.content.toLowerCase().includes("prefer")
+                )
+            ) {
                 newMemories.push({
                     id: `mock_mem_${this.memoryIdCounter++}`,
                     memory: "User prefers visual explanations and practical examples",
@@ -73,14 +85,26 @@ export class MockMem0Service {
             }
 
             // Memory about skill level
-            if (userMessages.some(msg => msg.content.toLowerCase().includes("struggle") || msg.content.toLowerCase().includes("difficult"))) {
+            if (
+                userMessages.some(
+                    (msg) =>
+                        msg.content.toLowerCase().includes("struggle") ||
+                        msg.content.toLowerCase().includes("difficult")
+                )
+            ) {
                 newMemories.push({
                     id: `mock_mem_${this.memoryIdCounter++}`,
                     memory: "User shows areas for improvement and actively seeks help",
                     user_id: userId,
                     metadata: { ...metadata, type: "learning_pattern" },
                 });
-            } else if (userMessages.some(msg => msg.content.toLowerCase().includes("understand") || msg.content.toLowerCase().includes("makes sense"))) {
+            } else if (
+                userMessages.some(
+                    (msg) =>
+                        msg.content.toLowerCase().includes("understand") ||
+                        msg.content.toLowerCase().includes("makes sense")
+                )
+            ) {
                 newMemories.push({
                     id: `mock_mem_${this.memoryIdCounter++}`,
                     memory: "User demonstrates good comprehension and engagement",
@@ -124,7 +148,7 @@ export class MockMem0Service {
 
         // Simple keyword matching
         const queryLower = query.toLowerCase();
-        const matchedMemories = userMemories.filter(mem =>
+        const matchedMemories = userMemories.filter((mem) =>
             mem.memory.toLowerCase().includes(queryLower)
         );
 
@@ -153,17 +177,35 @@ export class MockMem0Service {
     private extractTopics(messages: Mem0Message[]): string[] {
         const topics = new Set<string>();
         const topicKeywords = {
-            'calculus': ['calculus', 'derivative', 'integral', 'chain rule', 'limit'],
-            'algebra': ['algebra', 'equation', 'eigenvalue', 'eigenvector', 'matrix'],
-            'programming': ['programming', 'code', 'function', 'python', 'javascript'],
-            'physics': ['physics', 'force', 'energy', 'motion', 'velocity'],
-            'chemistry': ['chemistry', 'molecule', 'reaction', 'atom', 'element'],
+            calculus: [
+                "calculus",
+                "derivative",
+                "integral",
+                "chain rule",
+                "limit",
+            ],
+            algebra: [
+                "algebra",
+                "equation",
+                "eigenvalue",
+                "eigenvector",
+                "matrix",
+            ],
+            programming: [
+                "programming",
+                "code",
+                "function",
+                "python",
+                "javascript",
+            ],
+            physics: ["physics", "force", "energy", "motion", "velocity"],
+            chemistry: ["chemistry", "molecule", "reaction", "atom", "element"],
         };
 
-        const allText = messages.map(m => m.content.toLowerCase()).join(' ');
+        const allText = messages.map((m) => m.content.toLowerCase()).join(" ");
 
         for (const [topic, keywords] of Object.entries(topicKeywords)) {
-            if (keywords.some(keyword => allText.includes(keyword))) {
+            if (keywords.some((keyword) => allText.includes(keyword))) {
                 topics.add(topic);
             }
         }
@@ -174,9 +216,9 @@ export class MockMem0Service {
     private summarizeConversation(messages: Mem0Message[]): string {
         const topics = this.extractTopics(messages);
         if (topics.length > 0) {
-            return topics.join(' and ');
+            return topics.join(" and ");
         }
-        return 'various topics';
+        return "various topics";
     }
 
     // Helper method for testing

@@ -1,9 +1,9 @@
 export interface User {
-  id: string;
-  name: string;
-  role: string;
+    id: string;
+    name: string;
+    role: string;
 }
 
 export interface IUserService {
-  findUser(userId: string): Promise<User | null>;
+    findUser(userId: string): Promise<User | null>;
 }
