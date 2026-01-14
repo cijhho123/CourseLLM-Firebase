@@ -574,36 +574,46 @@ The `package.json` scripts should be run in the following order for a complete w
 ```json
 {
   "scripts": {
-    "dev": "next dev --turbopack -p 9002",
+    "postinstall": "firebase dataconnect:sdk:generate || echo 'DataConnect generate skipped'",
+    "dataconnect:generate": "firebase dataconnect:sdk:generate",
+    "emulators:start": "firebase emulators:start",
+    "emulators:stop": "lsof -t -i:9099 -i:8080 -i:9000 -i:9199 -i:9399 -i:4000 | xargs -r kill -9",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint",
     "test:e2e": "playwright test",
+    "dev": "next dev --turbopack -p 9002",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "NODE_ENV=production next build",
-    "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "start": "next start"
   }
 }
 ```
 
-**Execution Order:**
+**Scripts are ordered by execution sequence:**
 
 1. **Setup Phase:**
-   - `pnpm install` - Install dependencies
-   - `firebase emulators:start` - Start Firebase emulators
+   - `pnpm install` - Install dependencies (runs `postinstall` automatically)
+   - `pnpm run dataconnect:generate` - Regenerate DataConnect SDK (if needed)
+   - `pnpm run emulators:start` - Start Firebase emulators
 
-2. **Development Phase:**
+2. **Validation Phase:**
+   - `pnpm run typecheck` - Type checking (must pass with 0 errors)
+   - `pnpm run lint` - Code linting (must pass)
+
+3. **Testing Phase:**
+   - `pnpm run test:e2e` - End-to-end Playwright tests
+
+4. **Development Phase:**
    - `pnpm run dev` - Run Next.js development server
    - `pnpm run genkit:dev` - (Optional) Run Genkit developer UI
 
-3. **Testing Phase:**
-   - `pnpm run typecheck` - Type checking (must pass)
-   - `pnpm run lint` - Code linting (must pass)
-   - `pnpm run test:e2e` - End-to-end tests
-
-4. **Build Phase:**
+5. **Build Phase:**
    - `pnpm run build` - Production build
    - `pnpm run start` - Start production server
+
+6. **Cleanup:**
+   - `pnpm run emulators:stop` - Stop all Firebase emulators
 
 ### Memory Service (src/services/memory-service/package.json)
 
