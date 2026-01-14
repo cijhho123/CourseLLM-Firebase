@@ -370,34 +370,6 @@ When testing the full application:
 
 ---
 
-## Login Credentials
-
-### Test User Accounts
-
-**IMPORTANT**: For professor review, use the following test accounts:
-
-#### Student Account
-- **Email**: `student@test.com`
-- **Password**: `[TODO: Add actual test password]`
-- **Role**: Student
-- **Department**: Computer Science
-
-#### Teacher Account
-- **Email**: `teacher@test.com`
-- **Password**: `[TODO: Add actual test password]`
-- **Role**: Teacher
-
-### Sign-up Procedure
-
-1. Navigate to http://localhost:9002
-2. Click "Continue with Google" (uses Firebase Auth emulator in local dev)
-3. For E2E tests, authentication uses custom tokens via `/api/test-token` endpoint
-4. On first login, user goes through onboarding:
-   - Select role (Student or Teacher)
-   - Select department
-   - Select courses (if student)
-5. After onboarding, redirect to role-based dashboard
-
 ### Role-Based Access
 
 **Student Role:**
