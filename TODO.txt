@@ -5,3 +5,4 @@
 * readme to run this shit
 * get drunk
 * go over all of the docs he asked us.
+* docker?
