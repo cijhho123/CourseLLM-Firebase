@@ -19,12 +19,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:all": "npm run lint && npm test -- --coverage && npm run test:e2e",
-    "db:init": "ts-node scripts/init-db.ts",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:migrate:deploy": "prisma migrate deploy",
-    "prisma:studio": "prisma studio",
-    "prisma:seed": "ts-node prisma/seed.ts"
+    "db:init": "ts-node scripts/init-db.ts"
   },
   "dependencies": {
     "@dataconnect/admin-generated": "file:../../../dataconnect-admin-generated",
