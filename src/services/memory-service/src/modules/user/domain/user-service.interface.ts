@@ -1,8 +1,4 @@
-export interface User {
-    id: string;
-    name: string;
-    role: string;
-}
+import { User } from "./user.types";
 
 export interface IUserService {
     findUser(userId: string): Promise<User | null>;

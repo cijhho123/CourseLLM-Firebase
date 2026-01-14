@@ -1,11 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import { PrismaService } from "./prisma.service";
+import { PrismaService } from "../../../database/prisma.service";
 import {
-  IMemoryRepository,
   CreateMemoryData,
   MemoryRecord,
   MemorySummary,
-} from "../common/interfaces/memory-repository.interface";
+} from "../domain/memory.types";
+import { IMemoryRepository } from "../domain/memory-repository.interface";
 
 @Injectable()
 export class PrismaMemoryRepository implements IMemoryRepository {

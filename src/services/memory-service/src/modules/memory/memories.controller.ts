@@ -8,8 +8,8 @@ import {
     HttpStatus,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from "@nestjs/swagger";
-import { MemoriesService } from "./memories.service";
-import { SynthesizeMemoriesDto } from "./dto/synthesize-memories.dto";
+import { MemoriesService } from "./application/services/memories.service";
+import { SynthesizeMemoriesDto } from "./application/dto/synthesize-memories.dto";
 
 @ApiTags("memories")
 @Controller("api/v1/memory")
@@ -27,12 +27,7 @@ export class MemoriesController {
         schema: {
             example: {
                 success: true,
-                memoriesCreated: 3,
-                memories: [
-                    "Student prefers visual explanations",
-                    "Struggles with chain rule application",
-                    "Shows strong understanding of limits",
-                ],
+                message: "Memory synthesis queued"
             },
         },
     })

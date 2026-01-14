@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import { IChatService, ChatWithMessages } from "../interfaces";
+import { IChatService } from "../domain/chat-service.interface";
+import { ChatWithMessages } from "../domain/chat.types";
 
 @Injectable()
 export class MockChatService implements IChatService {

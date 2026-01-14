@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import { IUserService, User } from "../interfaces";
+import { IUserService } from "../domain/user-service.interface";
+import { User } from "../domain/user.types";
 
 @Injectable()
 export class MockUserService implements IUserService {
@@ -34,14 +35,5 @@ export class MockUserService implements IUserService {
 
     async findUser(userId: string): Promise<User | null> {
         return this.users.get(userId) || null;
-    }
-
-    // Helper methods for testing
-    addMockUser(user: User): void {
-        this.users.set(user.id, user);
-    }
-
-    clearMockData(): void {
-        this.users.clear();
     }
 }

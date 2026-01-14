@@ -1,11 +1,9 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
-import { CustomLoggerService } from "../common/logger/logger.service";
+import { CustomLoggerService } from "../../../common/logger/logger.service";
 import {
   IMemoryRepository,
-  CreateMemoryData,
-  MemoryRecord,
-  MemorySummary,
-} from "../common/interfaces/memory-repository.interface";
+} from "../domain/memory-repository.interface";
+import { CreateMemoryData, MemoryRecord, MemorySummary } from "../domain/memory.types";
 
 @Injectable()
 export class GoogleCloudMemoryRepository
