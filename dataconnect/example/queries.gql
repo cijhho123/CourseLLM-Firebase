@@ -1,3 +1,54 @@
+query GetUserById($id: String!) @auth(level: PUBLIC) {
+  user(id: $id) {
+    id
+    name
+    role
+    createdAt
+    updatedAt
+  }
+}
+
+query GetChatById($id: String!) @auth(level: PUBLIC) {
+  chat(id: $id) {
+    id
+    userId
+    title
+    lastUpdatedAt
+    createdAt
+    updatedAt
+  }
+}
+
+query GetChatsByUserId($userId: String!, $limit: Int) @auth(level: PUBLIC) {
+  chats(
+    where: { userId: { eq: $userId } }
+    orderBy: [{ lastUpdatedAt: DESC }]
+    limit: $limit
+  ) {
+    id
+    userId
+    title
+    lastUpdatedAt
+    createdAt
+    updatedAt
+  }
+}
+
+query GetMessagesByChatId($chatId: String!) @auth(level: PUBLIC) {
+  messages(
+    where: { chatId: { eq: $chatId } }
+    orderBy: [{ sequenceNumber: DESC }]
+  ) {
+    id
+    chatId
+    content
+    sender
+    sequenceNumber
+    createdAt
+    updatedAt
+  }
+}
+
 query GetMemoriesByUserId($userId: String!) @auth(level: PUBLIC) {
   memories(where: { userId: { eq: $userId } }, orderBy: [{ createdAt: DESC }]) {
     id

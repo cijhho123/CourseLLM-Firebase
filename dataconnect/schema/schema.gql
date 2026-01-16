@@ -1,3 +1,30 @@
+type User @table {
+  id: String!
+  name: String!
+  role: String!
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+type Chat @table {
+  id: String!
+  userId: String!
+  title: String
+  lastUpdatedAt: Timestamp! @default(expr: "request.time")
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+type Message @table {
+  id: UUID! @default(expr: "uuidV4()")
+  chatId: String!
+  content: String!
+  sender: String!
+  sequenceNumber: Int!
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
 type Memory @table {
   id: UUID! @default(expr: "uuidV4()")
   userId: String!

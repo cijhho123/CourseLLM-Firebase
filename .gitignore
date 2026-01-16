@@ -54,3 +54,4 @@ firestore-debug.log
 dataconnect/.dataconnect
 src/dataconnect-generated/
 src/dataconnect-admin-generated/
+.early.coverage

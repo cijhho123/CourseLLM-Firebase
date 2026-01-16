@@ -1,3 +1,55 @@
+mutation CreateUser(
+  $id: String!,
+  $name: String!,
+  $role: String!
+) @auth(level: PUBLIC) {
+  user_insert(data: {
+    id: $id,
+    name: $name,
+    role: $role
+  })
+}
+
+mutation CreateChat(
+  $id: String!,
+  $userId: String!,
+  $title: String
+) @auth(level: PUBLIC) {
+  chat_insert(data: {
+    id: $id,
+    userId: $userId,
+    title: $title
+  })
+}
+
+mutation UpdateChat(
+  $id: String!,
+  $title: String,
+  $lastUpdatedAt: Timestamp
+) @auth(level: PUBLIC) {
+  chat_update(
+    id: $id,
+    data: {
+      title: $title,
+      lastUpdatedAt: $lastUpdatedAt
+    }
+  )
+}
+
+mutation CreateMessage(
+  $chatId: String!,
+  $content: String!,
+  $sender: String!,
+  $sequenceNumber: Int!
+) @auth(level: PUBLIC) {
+  message_insert(data: {
+    chatId: $chatId,
+    content: $content,
+    sender: $sender,
+    sequenceNumber: $sequenceNumber
+  })
+}
+
 mutation CreateMemory(
   $userId: String!,
   $content: String!,
