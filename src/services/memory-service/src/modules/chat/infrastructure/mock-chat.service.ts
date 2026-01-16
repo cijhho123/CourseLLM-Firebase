@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { IChatService } from "../domain/chat-service.interface";
-import { ChatWithMessages } from "../domain/chat.types";
+import { ChatWithMessages, ChatRecord, CreateChatData } from "../domain/chat.types";
 
 @Injectable()
 export class MockChatService implements IChatService {
     private chats: Map<string, ChatWithMessages> = new Map();
+    private chatRecords: Map<string, ChatRecord> = new Map();
 
     constructor() {
         // Initialize with hardcoded test data
@@ -104,12 +105,78 @@ export class MockChatService implements IChatService {
             },
         ];
 
-        mockChats.forEach((chat) => this.chats.set(chat.id, chat));
+        mockChats.forEach((chat) => {
+            this.chats.set(chat.id, chat);
+            const now = new Date();
+            this.chatRecords.set(chat.id, {
+                id: chat.id,
+                userId: chat.userId,
+                title: chat.title,
+                lastUpdatedAt: now,
+                createdAt: now,
+                updatedAt: now,
+            });
+        });
     }
 
     async findChatWithMessages(
         chatId: string
     ): Promise<ChatWithMessages | null> {
         return this.chats.get(chatId) || null;
+    }
+
+    async findChatById(chatId: string): Promise<ChatRecord | null> {
+        return this.chatRecords.get(chatId) || null;
+    }
+
+    async findChatsByUserId(userId: string, limit?: number): Promise<ChatRecord[]> {
+        const chats = Array.from(this.chatRecords.values())
+            .filter(chat => chat.userId === userId)
+            .sort((a, b) => b.lastUpdatedAt.getTime() - a.lastUpdatedAt.getTime());
+        
+        return limit ? chats.slice(0, limit) : chats;
+    }
+
+    async createChat(data: CreateChatData): Promise<ChatRecord> {
+        const now = new Date();
+        const chatRecord: ChatRecord = {
+            id: data.id,
+            userId: data.userId,
+            title: data.title || null,
+            lastUpdatedAt: now,
+            createdAt: now,
+            updatedAt: now,
+        };
+        this.chatRecords.set(data.id, chatRecord);
+        
+        // Also create ChatWithMessages entry
+        this.chats.set(data.id, {
+            id: data.id,
+            userId: data.userId,
+            title: data.title || null,
+            messages: [],
+        });
+        
+        return chatRecord;
+    }
+
+    async updateChat(
+        chatId: string,
+        updates: { title?: string; lastUpdatedAt?: Date }
+    ): Promise<ChatRecord> {
+        const chat = this.chatRecords.get(chatId);
+        if (!chat) {
+            throw new Error(`Chat ${chatId} not found`);
+        }
+        
+        const updated: ChatRecord = {
+            ...chat,
+            title: updates.title !== undefined ? updates.title : chat.title,
+            lastUpdatedAt: updates.lastUpdatedAt || new Date(),
+            updatedAt: new Date(),
+        };
+        
+        this.chatRecords.set(chatId, updated);
+        return updated;
     }
 }

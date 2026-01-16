@@ -20,4 +20,5 @@ export interface MemoryRecord {
     content: string;
     createdAt: Date;
     sourceChatIds: string[];
+    mem0MemoryId?: string | null;
   }

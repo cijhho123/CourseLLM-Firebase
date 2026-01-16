@@ -53,14 +53,37 @@ export class GoogleCloudMemoryRepository
 
       this.logger.info(`Created memory for user ${data.userId}`);
 
+      // Fetch the full memory record to get timestamps
+      // Note: memory_insert only returns the key, so we need to query for the full record
+      const memoryData = result.data.memory_insert;
+      
+      // Query for the full memory record
+      const memories = await this.findByUserId(data.userId);
+      const createdMemory = memories.find(m => m.id === memoryData.id);
+      
+      if (!createdMemory) {
+        // Fallback: create a record with current timestamp if we can't find it
+        const now = new Date();
+        return {
+          id: memoryData.id,
+          userId: data.userId,
+          content: data.content,
+          mem0MemoryId: data.mem0MemoryId || null,
+          sourceChatIds: data.sourceChatIds,
+          createdAt: now,
+          updatedAt: now,
+        };
+      }
+
+      // Convert MemorySummary to MemoryRecord
       return {
-        id: result.data.memory_insert.id,
+        id: createdMemory.id,
         userId: data.userId,
-        content: data.content,
-        mem0MemoryId: data.mem0MemoryId,
-        sourceChatIds: data.sourceChatIds,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        content: createdMemory.content,
+        mem0MemoryId: createdMemory.mem0MemoryId || null,
+        sourceChatIds: createdMemory.sourceChatIds,
+        createdAt: createdMemory.createdAt,
+        updatedAt: createdMemory.createdAt, // Use createdAt as updatedAt fallback
       };
     } catch (error) {
       this.logger.error(`Failed to create memory: ${error.message}`, error.stack);
@@ -74,12 +97,19 @@ export class GoogleCloudMemoryRepository
 
       this.logger.info(`Retrieved ${result.data.memories.length} memories for user ${userId}`);
 
-      return result.data.memories.map((memory: any) => ({
-        id: memory.id,
-        content: memory.content,
-        createdAt: new Date(memory.createdAt),
-        sourceChatIds: memory.sourceChatIds,
-      }));
+      return result.data.memories.map((memory: any) => {
+        const createdAt = memory.createdAt 
+          ? (typeof memory.createdAt === 'string' ? new Date(memory.createdAt) : new Date(memory.createdAt))
+          : new Date();
+        
+        return {
+          id: memory.id,
+          content: memory.content,
+          createdAt,
+          sourceChatIds: memory.sourceChatIds || [],
+          mem0MemoryId: memory.mem0MemoryId || null,
+        };
+      });
     } catch (error) {
       this.logger.error(`Failed to find memories: ${error.message}`, error.stack);
       throw error;

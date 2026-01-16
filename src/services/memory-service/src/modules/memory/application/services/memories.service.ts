@@ -66,18 +66,22 @@ export class MemoriesService {
             this.logger.info(`Calling mem0 service to queue memory synthesis`);
 
             // Queue the job in mem0 (fire-and-forget)
+            // Note: This only queues the job - memories are created asynchronously by mem0
+            // They will be saved to the database when fetched via getUserMemories
             const response = await this.mem0Service.addMemories(mem0Messages, chat.userId, metadata);
 
             const processingTime = Date.now() - startTime;
+            const eventId = response && response.length > 0 ? response[0]?.id : null;
+            
             this.logger.info(
-                `Memory synthesis queued for chat ${dto.chatID} in ${processingTime}ms. Event ID: ${response[0].id}`
+                `Memory synthesis queued for chat ${dto.chatID} in ${processingTime}ms. Event ID: ${eventId || 'N/A'}`
             );
 
             return {
                 success: true,
                 message: "Memory synthesis queued",
-                event_id: response[0].id,
-                status: response[0].metadata.status,
+                event_id: eventId,
+                status: "queued",
             };
         } catch (error) {
             const processingTime = Date.now() - startTime;
@@ -95,7 +99,8 @@ export class MemoriesService {
     }
 
     /**
-     * Retrieve memories for a user (local DB + fallback to mem0.ai)
+     * Retrieve memories for a user (local DB + sync from mem0.ai)
+     * Memories are created in the database when fetched from mem0.ai
      */
     async getUserMemories(userId: string) {
         this.logger.info(`Retrieving memories for user ${userId}`);
@@ -106,35 +111,54 @@ export class MemoriesService {
             if (!user) throw new NotFoundException(`User ${userId} not found`);
 
             // Fetch memories from local DB
-            let memories = await this.memoryRepository.findByUserId(userId);
+            const localMemories = await this.memoryRepository.findByUserId(userId);
+            const localMem0Ids = new Set(localMemories.map(m => m.mem0MemoryId).filter(Boolean));
 
-            // Fallback: fetch from mem0.ai if none locally
-            if (memories.length === 0) {
-                this.logger.info(`No local memories for user ${userId}, checking mem0.ai`);
-                const mem0Memories = await this.mem0Service.getAllMemories(userId);
+            // Always check mem0.ai for any new memories that haven't been synced yet
+            this.logger.info(`Checking mem0.ai for memories for user ${userId}`);
+            const mem0Memories = await this.mem0Service.getAllMemories(userId);
 
-                if (mem0Memories.length > 0) {
+            // Filter out memories that are already in local DB
+            const newMem0Memories = mem0Memories.filter(mem => !localMem0Ids.has(mem.id));
+
+            // Save any new memories from mem0.ai to local database
+            if (newMem0Memories.length > 0) {
+                this.logger.info(`Found ${newMem0Memories.length} new memories from mem0.ai, saving to database`);
+                try {
                     const savedMemories = await Promise.all(
-                        mem0Memories.map((mem) =>
+                        newMem0Memories.map((mem) =>
                             this.memoryRepository.create({
                                 userId,
                                 content: mem.memory,
                                 mem0MemoryId: mem.id,
-                                sourceChatIds: [],
+                                sourceChatIds: mem.metadata?.chat_id 
+                                    ? (Array.isArray(mem.metadata.chat_id) 
+                                        ? mem.metadata.chat_id 
+                                        : [mem.metadata.chat_id])
+                                    : [],
                             })
                         )
                     );
-                    memories = savedMemories;
-                    this.logger.info(`Synced ${savedMemories.length} memories from mem0.ai`);
+                    this.logger.info(`Synced ${savedMemories.length} new memories from mem0.ai to database`);
+                    
+                    // Add newly saved memories to the local memories list
+                    localMemories.push(...savedMemories.map((mem) => ({
+                        id: mem.id,
+                        content: mem.content,
+                        createdAt: mem.createdAt,
+                        sourceChatIds: mem.sourceChatIds,
+                    })));
+                } catch (saveError) {
+                    this.logger.warn(`Failed to save some memories from mem0.ai: ${saveError.message}`);
                 }
             }
 
             return {
-                memories: memories.map((mem) => ({
+                memories: localMemories.map((mem) => ({
                     memoryID: mem.id,
                     content: mem.content,
                     createdAt: mem.createdAt.toISOString(),
-                    relatedChats: mem.sourceChatIds,
+                    relatedChats: mem.sourceChatIds || [],
                 })),
             };
         } catch (error) {

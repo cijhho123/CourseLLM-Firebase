@@ -1,11 +1,23 @@
 import { Module } from "@nestjs/common";
-import { MockUserService } from "./infrastructure/mock-user.service";
+import { UserController } from "./user.controller";
+import { UserService } from "./application/services/user.service";
+import { GoogleCloudUserRepository } from "./infrastructure/google-cloud-user.repository";
+import { LoggerModule } from "../../common/logger/logger.module";
 
 @Module({
-  controllers: [],
+  imports: [LoggerModule],
+  controllers: [UserController],
   providers: [
-    { provide: 'IUserService', useClass: MockUserService },
+    UserService,
+    {
+      provide: "IUserRepository",
+      useClass: GoogleCloudUserRepository,
+    },
+    {
+      provide: "IUserService",
+      useClass: UserService,
+    },
   ],
-  exports: ['IUserService'],
+  exports: ["IUserService", "IUserRepository"],
 })
 export class UserModule {}

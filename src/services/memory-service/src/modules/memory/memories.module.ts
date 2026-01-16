@@ -5,10 +5,10 @@ import { Mem0Service } from "./infrastructure/mem0.service";
 import { GoogleCloudMemoryRepository } from "./infrastructure/google-cloud-memory.repository";
 import { UserModule } from "../user/user.module";
 import { ChatModule } from "../chat/chat.module";
-
+import { LoggerModule } from "../../common/logger/logger.module"
 
 @Module({
-  imports: [UserModule, ChatModule],
+  imports: [UserModule, ChatModule, LoggerModule],
   controllers: [MemoriesController],
   providers: [
     MemoriesService,
