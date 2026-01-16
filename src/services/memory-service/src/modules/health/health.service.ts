@@ -1,5 +1,5 @@
 import { Injectable, ServiceUnavailableException } from "@nestjs/common";
-import { CustomLoggerService } from "../common/logger/logger.service";
+import { CustomLoggerService } from "../../common/logger/logger.service";
 
 @Injectable()
 export class HealthService {

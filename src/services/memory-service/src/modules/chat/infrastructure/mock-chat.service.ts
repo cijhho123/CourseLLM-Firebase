@@ -112,13 +112,4 @@ export class MockChatService implements IChatService {
     ): Promise<ChatWithMessages | null> {
         return this.chats.get(chatId) || null;
     }
-
-    // Helper methods for testing
-    addMockChat(chat: ChatWithMessages): void {
-        this.chats.set(chat.id, chat);
-    }
-
-    clearMockData(): void {
-        this.chats.clear();
-    }
 }

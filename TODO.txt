@@ -1,8 +1,2 @@
-* add unit testing
-* go over files to see they are all tip top shape.
-* go over npm commands he wants.
-* add cpu monitoring gpu whateber he fuckikng wanted there
 * readme to run this shit
-* get drunk
 * go over all of the docs he asked us.
-* docker?
