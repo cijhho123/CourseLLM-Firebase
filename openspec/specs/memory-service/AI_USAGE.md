@@ -46,6 +46,49 @@ The pattern was consistent: AI tries to anticipate future features and adds infr
 ### mem0.ai Integration - Going Beyond AI Generation
 
 The AI's suggestions for mem0.ai integration were generic and incomplete. We had to read mem0.ai's actual API documentation to understand the specific requirements for their SDK - how to format conversation messages, handle authentication, deal with rate limiting, and properly parse responses.
+
+### Migration to Firebase Data Connect - Schema Creation and Query/Mutation Development
+
+A major refactoring effort focused on migrating from Firestore to Firebase Data Connect, starting with schema design and building out the necessary queries and mutations.
+
+**Schema Creation Process**:
+We started by defining the core data model in `dataconnect/schema/schema.gql`:
+- `User` type: Basic user information (id, name, role) with timestamps
+- `Chat` type: Conversation containers (id, userId, title) with lastUpdatedAt for sorting
+- `Message` type: Individual messages within chats (id, chatId, content, sender, sequenceNumber) 
+- `Memory` type: Synthesized memories (id, userId, content, mem0MemoryId, sourceChatIds)
+
+Each type used Firebase Data Connect directives like `@table` for table definition, `@default(expr: "request.time")` for automatic timestamp generation, and `@default(expr: "uuidV4()")` for UUID generation. The schema evolved iteratively - we started with what we needed and removed fields that weren't essential (like `messageCount` which could be computed dynamically).
+
+**Building Queries and Mutations**:
+Once the schema was defined, we created corresponding GraphQL operations in `dataconnect/example/queries.gql` and `dataconnect/example/mutations.gql`:
+
+- **Mutations**: `CreateUser`, `CreateChat`, `UpdateChat`, `CreateMessage`, `CreateMemory` - each mutation was designed to match the service's needs, with `@auth(level: PUBLIC)` for emulator access during development
+- **Queries**: `GetUserById`, `GetChatById`, `GetChatsByUserId`, `GetMessagesByChatId`, `GetMemoriesByUserId` - queries included proper filtering (using `where` clauses), ordering (using `orderBy`), and field selection
+
+**Service Integration**:
+With the schema and operations in place, we built repository implementations that used the generated SDK:
+- Each repository (User, Chat, Message, Memory) implemented a domain interface
+- Repositories handled Data Connect initialization, calling generated SDK functions, and converting responses to domain types
+- We discovered that insert mutations only return keys, so repositories fetch full records after creation to get timestamps
+- Timestamp handling required conversion from Firebase's `TimestampString` format to JavaScript `Date` objects
+
+**API Simplification**:
+- Removed pagination from message retrieval - messages endpoint now returns all messages for a chat
+- Removed GET endpoint from messages controller - only POST endpoint remains for saving messages
+- Fixed DTO duplication - removed `chatID` from `SaveMessageDto` body since it's already provided as a path parameter
+
+**Memory Service Flow Correction**:
+- Fixed memory creation timing - memories are now created in the database only when fetched from mem0.ai, not during synthesis
+- Added proper deduplication using `mem0MemoryId` to prevent duplicate memory records when syncing from mem0.ai
+
+**Repository Pattern Refinement**:
+- Created proper module structure with domain, infrastructure, and application layers for User, Chat, Message, and Memory modules
+- Implemented repository interfaces and concrete implementations using Firebase Data Connect SDK
+- Resolved circular dependencies between Chat and Messages modules using NestJS `forwardRef`
+
+This migration demonstrated the power of schema-first development - by defining the data model and operations upfront, we generated type-safe SDKs that made the service implementation straightforward. The iterative refinement process (removing unnecessary fields, simplifying queries) resulted in a cleaner, more maintainable codebase.
+
 ## What Required Manual Implementation
 
 **Testing**: While AI generated test structure, the real work was understanding what to test - we needed to verify that when mem0 returns memories, they're correctly stored in Firestore and can be retrieved. The test fixtures had to match realistic conversation data.
@@ -53,6 +96,8 @@ The AI's suggestions for mem0.ai integration were generic and incomplete. We had
 **Integration with Chat Service**: We had to define the IChatService interface that the memory service depends on, understanding how conversations flow from the chat system into memory synthesis.
 
 **Firestore Integration**: Setting up proper Firestore document structure, understanding subcollection patterns for conversations and their associated memories, and getting proper references between documents required hands-on work beyond what AI could provide.
+
+**Firebase Data Connect Migration**: Creating the GraphQL schema from scratch, designing queries and mutations that matched our service needs, understanding how to use the generated SDKs, handling insert mutations that only return keys, and properly converting Data Connect types (like TimestampString) to JavaScript types required careful reading of Firebase documentation and iterative development. The process involved multiple cycles of: define schema → generate SDK → implement repository → discover edge cases → refine schema → regenerate SDK.
 
 ## Summary
 

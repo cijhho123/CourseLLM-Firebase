@@ -11,14 +11,17 @@ This document provides a step-by-step implementation plan for the Memory Service
 ### ✅ Completed (MVP Core)
 
 -   NestJS project structure and configuration
--   PostgreSQL schema with Prisma ORM
--   Database migrations and seed scripts
--   All 5 core API endpoints (register, messages, conversations, user conversations, synthesize)
--   Docker Compose for local PostgreSQL
--   Basic error handling and validation
--   Swagger/OpenAPI documentation
--   Initial unit and E2E tests
--   Service documentation (README, IMPLEMENTATION)
+-   Firebase Data Connect GraphQL schema
+-   Firebase Data Connect SDK generation and integration
+-   All API endpoints functional (users, conversations, messages, memories)
+-   Firebase Data Connect emulator for local development
+-   Global exception filter and validation pipe
+-   Winston logger with daily rotation
+-   Health check endpoint
+-   Swagger/OpenAPI documentation at `/api/docs`
+-   mem0.ai SDK integration for memory synthesis
+-   Initial unit tests
+-   Service documentation (README, design.md, spec.md)
 
 ### 🔄 In Progress
 
@@ -29,9 +32,9 @@ This document provides a step-by-step implementation plan for the Memory Service
 
 ### ⏳ Pending
 
--   Firebase Authentication middleware
+-   ~~Firebase Authentication middleware~~ (NOT NEEDED - internal service, no auth)
+-   Production Firebase Data Connect deployment
 -   Production deployment to Cloud Run
--   Real mem0.ai SDK integration
 -   CI/CD pipeline setup
 -   Monitoring and alerting configuration
 
@@ -252,16 +255,20 @@ test("Student can save and retrieve messages", async ({ page }) => {
 
 ### 4.1 Firebase Auth Middleware
 
-**Status**: ⏳ Pending
+**Status**: ❌ NOT APPLICABLE
 
-**Tasks**:
+**Note**: Memory Service is an **internal-only service** that does NOT implement authentication or authorization. All authentication/authorization is handled by calling services (Chat Management Service) before requests reach Memory Service. Network isolation (VPC/firewall) provides security.
 
--   [ ] Create NestJS guard for Firebase token verification
--   [ ] Add guard to all protected endpoints
--   [ ] Extract userID from token claims
--   [ ] Add authorization checks (user can only access own data)
--   [ ] Document authentication flow
--   [ ] Add auth tests
+**What Memory Service Does NOT Do**:
+-   ❌ Does NOT verify Firebase tokens
+-   ❌ Does NOT check user permissions
+-   ❌ Does NOT implement role-based access control
+-   ❌ Does NOT have authentication middleware
+
+**Security Model**:
+-   Network isolation via VPC/firewall rules
+-   Only Chat Management Service can access Memory Service
+-   Calling service handles all auth/authz before calling Memory API
 
 **Implementation**:
 
@@ -346,43 +353,44 @@ export class MessagesController {
 
 ## Phase 5: Production Deployment 🚀
 
-### 5.1 Cloud SQL Setup
+### 5.1 Firebase Data Connect Production Deployment
 
 **Status**: ⏳ Pending
 
 **Tasks**:
 
--   [ ] Provision Cloud SQL PostgreSQL instance
--   [ ] Configure connection pooling
--   [ ] Set up SSL certificates
--   [ ] Configure IAM authentication
--   [ ] Run Prisma migrations on Cloud SQL
--   [ ] Test connection from Cloud Run
--   [ ] Set up automated backups
--   [ ] Configure read replicas (if needed)
+-   [ ] Deploy Firebase Data Connect schema to production
+-   [ ] Configure production Firebase project
+-   [ ] Set up Firebase Data Connect connectors
+-   [ ] Generate production SDKs
+-   [ ] Test production Data Connect connection
+-   [ ] Configure backup and retention policies
+-   [ ] Set up monitoring for Data Connect operations
 
-**Cloud SQL Connection**:
+**Firebase Data Connect Deployment**:
 
 ```bash
-# Connection string format
-DATABASE_URL="postgresql://user:pass@/dbname?host=/cloudsql/project:region:instance"
+# Deploy schema to production
+firebase deploy --only dataconnect
 
-# Or with IP
-DATABASE_URL="postgresql://user:pass@IP:5432/dbname?sslmode=require"
+# Generate production SDKs
+firebase dataconnect:sdk:generate
+
+# Verify deployment
+firebase dataconnect:connectors:list
 ```
 
 ### 5.2 mem0.ai Integration
 
-**Status**: 🔄 In Progress (mock implementation exists)
+**Status**: ✅ Complete (real SDK already integrated)
 
 **Tasks**:
 
--   [ ] Obtain mem0.ai API key
--   [ ] Install mem0.ai SDK: `npm install mem0ai`
--   [ ] Replace mock implementation in [`src/memories/mem0.service.ts`](../../../src/services/memory-service/src/memories/mem0.service.ts)
--   [ ] Test memory synthesis with real API
--   [ ] Handle rate limits and errors
--   [ ] Document API usage and costs
+-   [x] mem0.ai SDK installed: `mem0ai` package
+-   [x] Real implementation in [`src/modules/memory/infrastructure/mem0.service.ts`](../../../src/services/memory-service/src/modules/memory/infrastructure/mem0.service.ts)
+-   [x] Memory synthesis with real API working
+-   [x] Error handling implemented
+-   [ ] Document API usage and costs (pending)
 
 **Real Implementation**:
 
@@ -847,9 +855,9 @@ export default function () {
 ### Sprint 1: Core Setup ✅
 
 -   [x] NestJS project initialized
--   [x] PostgreSQL + Prisma configured
--   [x] Docker Compose setup
--   [x] Basic API endpoints
+-   [x] Firebase Data Connect schema and SDK configured
+-   [x] Firebase emulator setup
+-   [x] All API endpoints functional
 -   [x] Initial tests
 
 ### Sprint 2: OpenSpec & Integration 🔄
@@ -867,17 +875,17 @@ export default function () {
 -   [ ] E2E tests for Memory flows
 -   [ ] Code cleanup ("no slop")
 
-### Sprint 4: Auth & Security ⏳
+### Sprint 4: Auth & Security ✅
 
--   [ ] Firebase Auth middleware
--   [ ] Authorization checks
--   [ ] Dev login documentation
--   [ ] Security audit
+-   [x] ~~Firebase Auth middleware~~ (NOT NEEDED - internal service)
+-   [x] Network isolation architecture documented
+-   [x] Security model documented (service-to-service trust)
+-   [ ] Security audit (pending)
 
 ### Sprint 5: Deployment ⏳
 
--   [ ] Cloud SQL setup
--   [ ] Real mem0.ai integration
+-   [ ] Firebase Data Connect production deployment
+-   [x] Real mem0.ai integration (complete)
 -   [ ] Cloud Run deployment
 -   [ ] Health monitoring
 -   [ ] CI/CD pipeline
@@ -976,9 +984,9 @@ export default function () {
 ### Documentation
 
 -   [NestJS Docs](https://docs.nestjs.com/)
--   [Prisma Guides](https://www.prisma.io/docs/guides)
+-   [Firebase Data Connect Docs](https://firebase.google.com/docs/data-connect)
 -   [mem0.ai API Reference](https://docs.mem0.ai/)
--   [Firebase Auth](https://firebase.google.com/docs/auth)
+-   [Firebase Data Connect GraphQL Schema](https://firebase.google.com/docs/data-connect/graphql-schema)
 -   [Cloud Run](https://cloud.google.com/run/docs)
 
 ### Tools
@@ -1001,30 +1009,32 @@ export default function () {
 ```bash
 # Development
 cd src/services/memory-service
-pnpm install
-docker-compose up -d
-pnpm prisma:generate
-pnpm prisma:migrate
-pnpm start:dev
+npm install
+cp .env.example .env
+# Edit .env with MEM0_API_KEY and GCLOUD_PROJECT
+
+# Generate Firebase Data Connect SDKs (from project root)
+cd ../../..
+firebase dataconnect:sdk:generate
+
+# Start service (starts Firebase emulator + NestJS)
+cd src/services/memory-service
+npm start
 
 # Testing
-pnpm test                    # Unit tests
-pnpm test:e2e               # E2E tests
-pnpm test:cov               # Coverage report
+npm test                    # Unit tests
+npm run typecheck          # TypeScript type checking
 
-# Linting & Type Checking
-pnpm lint                    # ESLint
-pnpm lint --fix             # Auto-fix
-pnpm typecheck              # TypeScript
+# Monitor services
+npm run monitor            # PM2 monitor
+npm stop                   # Stop all services
 
 # Deployment
+# Build Docker image
 docker build -t memory-service .
-docker run -p 3001:3001 memory-service
 
-# Database
-pnpm prisma:studio          # Open Prisma Studio
-pnpm prisma:migrate:create  # Create migration
-pnpm prisma:migrate:deploy  # Apply migrations
+# Deploy Firebase Data Connect schema
+firebase deploy --only dataconnect
 
 # Access
 http://localhost:3001/api/docs    # Swagger UI

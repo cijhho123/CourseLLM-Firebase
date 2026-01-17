@@ -91,27 +91,47 @@ This directory contains the complete OpenSpec documentation for the Memory Servi
 ### Service Architecture
 
 ```
-Chat Management Service (ONLY Consumer)
-           │
-           │ HTTP/REST
-           ▼
-    Memory Service (NestJS)
-           │
-           ├─► PostgreSQL (conversations, messages)
-           └─► mem0.ai (memory synthesis)
+┌─────────────────────────────┐
+│  Chat Management Service    │
+│  (ONLY Consumer)            │
+│  • Authenticates users      │
+│  • Authorizes requests       │
+└──────────────┬──────────────┘
+               │
+               │ HTTP/REST (NO AUTH)
+               │ Network isolated (VPC)
+               ▼
+┌─────────────────────────────┐
+│  Memory Service (NestJS)    │
+│  ⚠️ INTERNAL ONLY            │
+│  • NO authentication         │
+│  • NO authorization          │
+│  • Trusts calling service   │
+└──────────────┬──────────────┘
+               │
+               ├─► Firebase Data Connect
+               │   (conversations, messages, users, memories)
+               │
+               └─► mem0.ai API
+                   (memory synthesis)
 ```
 
 ### API Endpoints
 
-All endpoints under `/api/v1/memory/`:
+**Base URL**: `/api/v1/memory` (except health check at `/health`)
 
-| Method | Endpoint                       | Purpose                                       |
-| ------ | ------------------------------ | --------------------------------------------- |
-| POST   | `/register`                    | Initialize user in memory system              |
-| POST   | `/messages`                    | Save message (creates conversation if needed) |
-| GET    | `/conversations/:chatID`       | Retrieve paginated messages                   |
-| GET    | `/users/:userID/conversations` | List user's conversations                     |
-| POST   | `/synthesize`                  | Generate memories with mem0.ai                |
+| Method | Endpoint                              | Purpose                                       |
+| ------ | ------------------------------------- | --------------------------------------------- |
+| POST   | `/users/register`                     | Initialize user in memory system (idempotent)|
+| GET    | `/users/:userID`                      | Get user by ID                                |
+| POST   | `/conversations`                      | Create new conversation                       |
+| GET    | `/conversations/:chatID`              | Get conversation with all messages            |
+| GET    | `/conversations/users/:userID`        | List user's conversations                     |
+| POST   | `/messages/:chatID`                   | Save message to conversation                  |
+| POST   | `/synthesize`                         | Queue memory synthesis with mem0.ai          |
+| GET    | `/users/:userID/memories`             | Get all synthesized memories for user         |
+| GET    | `/health`                             | Health check endpoint                         |
+| GET    | `/api/docs`                           | Swagger/OpenAPI documentation                 |
 
 ### Security Model
 
@@ -160,12 +180,15 @@ All endpoints under `/api/v1/memory/`:
 
 ### ✅ Complete
 
--   NestJS application structure
--   PostgreSQL schema with Prisma ORM
--   All 5 API endpoints functional
--   Docker Compose for local development
--   Swagger/OpenAPI documentation
--   Basic error handling and validation
+-   NestJS application structure with modular architecture
+-   Firebase Data Connect GraphQL schema and generated SDKs
+-   All API endpoints functional (users, conversations, messages, memories)
+-   Firebase Data Connect emulator for local development
+-   Swagger/OpenAPI documentation at `/api/docs`
+-   Global exception filter and validation pipe
+-   Winston logger with daily rotation
+-   Health check endpoint at `/health`
+-   mem0.ai integration for memory synthesis
 -   OpenSpec documentation (this directory)
 
 ### 🔄 In Progress
@@ -177,11 +200,11 @@ All endpoints under `/api/v1/memory/`:
 ### 🎯 Planned
 
 -   Chat Management Service integration
--   Network isolation configuration
+-   Network isolation configuration (VPC/firewall rules)
 -   Production Cloud Run deployment
--   Real mem0.ai SDK integration
 -   CI/CD pipeline with automated tests
--   Monitoring and alerting
+-   Monitoring and alerting (Cloud Logging, Cloud Monitoring)
+-   Production Firebase Data Connect deployment
 
 ---
 
@@ -241,38 +264,62 @@ await axios.post(`${MEMORY_SERVICE_URL}/api/v1/memory/synthesize`, {
 
 ### Local Development
 
+**Quick Start (Recommended)**:
+
 ```bash
 cd src/services/memory-service
 
 # Install dependencies
-pnpm install
+npm install  # or pnpm install
 
-# Start PostgreSQL
-docker-compose up -d
+# Set up environment variables
+cp .env.example .env
+# Edit .env with MEM0_API_KEY and GCLOUD_PROJECT
 
-# Run migrations
-pnpm prisma:generate
-pnpm prisma:migrate
+# Generate Firebase Data Connect SDKs (from project root)
+cd ../../..
+firebase dataconnect:sdk:generate
 
-# Start service
-pnpm start:dev
+# Start everything (Firebase emulator + NestJS service)
+cd src/services/memory-service
+npm start
+```
 
-# Access Swagger docs
-open http://localhost:3001/api/docs
+The `npm start` script automatically:
+- Starts Firebase Data Connect emulator (via PM2)
+- Waits for emulator to be ready
+- Starts NestJS dev server with watch mode (via PM2)
+- Both services run in background with PM2
+
+**Access Services**:
+- API: http://localhost:3001
+- Swagger Docs: http://localhost:3001/api/docs
+- Health Check: http://localhost:3001/health
+
+**Monitor Services**:
+```bash
+# View PM2 process list and stats
+npm run monitor
+
+# View logs
+pm2 logs memory-service
+pm2 logs firebase-emulator
+
+# Stop all services
+npm stop
 ```
 
 ### Running Tests
 
 ```bash
+# Type checking
+npm run typecheck
+
 # Unit tests
-pnpm test
-
-# E2E tests
-pnpm test:e2e
-
-# Coverage report
-pnpm test:cov
+npm test
 ```
+
+**Note**: The `start.bash` script uses PM2 to manage both Firebase emulator and NestJS service. Use `npm stop` to cleanly stop both services.
 
 ---
 
