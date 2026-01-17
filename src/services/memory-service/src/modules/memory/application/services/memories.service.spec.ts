@@ -3,7 +3,6 @@ import { NotFoundException } from "@nestjs/common";
 import { MemoriesService } from "./memories.service";
 import { Mem0Service } from "../../infrastructure/mem0.service";
 import { CustomLoggerService } from "../../../../common/logger/logger.service";
-import { IMemoryRepository } from "../../domain/memory-repository.interface";
 import { IChatService } from "../../../chat/domain/chat-service.interface";
 import { IUserService } from "../../../user/domain/user-service.interface";
 import { SynthesizeMemoriesDto } from "../dto/synthesize-memories.dto";
@@ -12,7 +11,6 @@ describe("MemoriesService", () => {
     let service: MemoriesService;
     let chatService: jest.Mocked<IChatService>;
     let userService: jest.Mocked<IUserService>;
-    let memoryRepository: jest.Mocked<IMemoryRepository>;
     let mem0Service: jest.Mocked<Mem0Service>;
     let logger: jest.Mocked<CustomLoggerService>;
 
@@ -27,14 +25,6 @@ describe("MemoriesService", () => {
 
         const mockUserService = {
             findUser: jest.fn(),
-        };
-
-        const mockMemoryRepository = {
-            findByUserId: jest.fn(),
-            create: jest.fn(),
-            findById: jest.fn(),
-            update: jest.fn(),
-            delete: jest.fn(),
         };
 
         const mockMem0Service = {
@@ -63,10 +53,6 @@ describe("MemoriesService", () => {
                     useValue: mockUserService,
                 },
                 {
-                    provide: "IMemoryRepository",
-                    useValue: mockMemoryRepository,
-                },
-                {
                     provide: Mem0Service,
                     useValue: mockMem0Service,
                 },
@@ -80,7 +66,6 @@ describe("MemoriesService", () => {
         service = module.get<MemoriesService>(MemoriesService);
         chatService = module.get("IChatService");
         userService = module.get("IUserService");
-        memoryRepository = module.get("IMemoryRepository");
         mem0Service = module.get(Mem0Service);
         logger = module.get(CustomLoggerService);
     });
@@ -405,25 +390,45 @@ describe("MemoriesService", () => {
             },
         ];
 
-        it("should retrieve memories from local database when available", async () => {
+        it("should retrieve memories directly from mem0.ai", async () => {
+            const mockMem0Memories = [
+                {
+                    id: "mem0_1",
+                    memory: "User likes Python programming",
+                    user_id: mockUserId,
+                    metadata: {
+                        chat_id: ["chat_1", "chat_2"],
+                        timestamp: "2024-01-01T00:00:00.000Z",
+                    },
+                },
+                {
+                    id: "mem0_2",
+                    memory: "User is learning calculus",
+                    user_id: mockUserId,
+                    metadata: {
+                        chat_id: "chat_3",
+                        timestamp: "2024-01-02T00:00:00.000Z",
+                    },
+                },
+            ];
+
             userService.findUser.mockResolvedValue(mockUser as any);
-            memoryRepository.findByUserId.mockResolvedValue(mockLocalMemories as any);
+            mem0Service.getAllMemories.mockResolvedValue(mockMem0Memories as any);
 
             const result = await service.getUserMemories(mockUserId);
 
             expect(userService.findUser).toHaveBeenCalledWith(mockUserId);
-            expect(memoryRepository.findByUserId).toHaveBeenCalledWith(mockUserId);
-            expect(mem0Service.getAllMemories).not.toHaveBeenCalled();
+            expect(mem0Service.getAllMemories).toHaveBeenCalledWith(mockUserId);
 
             expect(result.memories).toHaveLength(2);
             expect(result.memories[0]).toEqual({
-                memoryID: "mem_local_1",
+                memoryID: "mem0_1",
                 content: "User likes Python programming",
                 createdAt: "2024-01-01T00:00:00.000Z",
                 relatedChats: ["chat_1", "chat_2"],
             });
             expect(result.memories[1]).toEqual({
-                memoryID: "mem_local_2",
+                memoryID: "mem0_2",
                 content: "User is learning calculus",
                 createdAt: "2024-01-02T00:00:00.000Z",
                 relatedChats: ["chat_3"],
@@ -437,113 +442,80 @@ describe("MemoriesService", () => {
                 `Failed to retrieve memories: User ${mockUserId} not found`
             );
 
-            expect(memoryRepository.findByUserId).not.toHaveBeenCalled();
+            expect(mem0Service.getAllMemories).not.toHaveBeenCalled();
         });
 
-        it("should fallback to mem0.ai when no local memories exist", async () => {
+        it("should retrieve memories from mem0.ai", async () => {
             const mockMem0Memories = [
                 {
                     id: "mem0_remote_1",
                     memory: "User prefers visual explanations",
                     user_id: mockUserId,
+                    metadata: {},
                 },
                 {
                     id: "mem0_remote_2",
                     memory: "User is interested in AI",
                     user_id: mockUserId,
+                    metadata: {},
                 },
             ];
 
-            const savedMemory1 = {
-                id: "mem_saved_1",
-                userId: mockUserId,
-                content: "User prefers visual explanations",
-                mem0MemoryId: "mem0_remote_1",
-                sourceChatIds: [],
-                createdAt: new Date("2024-01-03"),
-            };
-
-            const savedMemory2 = {
-                id: "mem_saved_2",
-                userId: mockUserId,
-                content: "User is interested in AI",
-                mem0MemoryId: "mem0_remote_2",
-                sourceChatIds: [],
-                createdAt: new Date("2024-01-03"),
-            };
-
             userService.findUser.mockResolvedValue(mockUser as any);
-            memoryRepository.findByUserId.mockResolvedValue([]);
             mem0Service.getAllMemories.mockResolvedValue(mockMem0Memories as any);
-            memoryRepository.create
-                .mockResolvedValueOnce(savedMemory1 as any)
-                .mockResolvedValueOnce(savedMemory2 as any);
 
             const result = await service.getUserMemories(mockUserId);
 
             expect(mem0Service.getAllMemories).toHaveBeenCalledWith(mockUserId);
-            expect(memoryRepository.create).toHaveBeenCalledTimes(2);
-            expect(memoryRepository.create).toHaveBeenCalledWith({
-                userId: mockUserId,
-                content: "User prefers visual explanations",
-                mem0MemoryId: "mem0_remote_1",
-                sourceChatIds: [],
-            });
+            expect(mem0Service.getAllMemories).toHaveBeenCalledWith(mockUserId);
 
             expect(result.memories).toHaveLength(2);
             expect(result.memories[0].content).toBe("User prefers visual explanations");
+            expect(result.memories[0].memoryID).toBe("mem0_remote_1");
             expect(result.memories[1].content).toBe("User is interested in AI");
+            expect(result.memories[1].memoryID).toBe("mem0_remote_2");
         });
 
-        it("should log sync operation when fetching from mem0.ai", async () => {
+        it("should log operation when fetching from mem0.ai", async () => {
             const mockMem0Memories = [
                 {
                     id: "mem0_1",
                     memory: "Test memory",
                     user_id: mockUserId,
+                    metadata: {},
                 },
             ];
 
-            const savedMemory = {
-                id: "mem_1",
-                userId: mockUserId,
-                content: "Test memory",
-                mem0MemoryId: "mem0_1",
-                sourceChatIds: [],
-                createdAt: new Date(),
-            };
-
             userService.findUser.mockResolvedValue(mockUser as any);
-            memoryRepository.findByUserId.mockResolvedValue([]);
             mem0Service.getAllMemories.mockResolvedValue(mockMem0Memories as any);
-            memoryRepository.create.mockResolvedValue(savedMemory as any);
 
             await service.getUserMemories(mockUserId);
 
             expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining("No local memories for user")
+                expect.stringContaining(`Retrieving memories for user ${mockUserId} from mem0.ai`)
             );
             expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining("Synced 1 memories from mem0.ai")
+                expect.stringContaining("Retrieved 1 memories from mem0.ai")
+            );
+            expect(logger.info).toHaveBeenCalledWith(
+                expect.stringContaining("Returning 1 unique memories")
             );
         });
 
-        it("should return empty array when no memories exist locally or remotely", async () => {
+        it("should return empty array when no memories exist in mem0.ai", async () => {
             userService.findUser.mockResolvedValue(mockUser as any);
-            memoryRepository.findByUserId.mockResolvedValue([]);
             mem0Service.getAllMemories.mockResolvedValue([]);
 
             const result = await service.getUserMemories(mockUserId);
 
             expect(result.memories).toEqual([]);
-            expect(memoryRepository.create).not.toHaveBeenCalled();
+            expect(mem0Service.getAllMemories).toHaveBeenCalledWith(mockUserId);
         });
 
         it("should handle errors when fetching from mem0.ai", async () => {
             const errorMessage = "Mem0 service unavailable";
 
             userService.findUser.mockResolvedValue(mockUser as any);
-            memoryRepository.findByUserId.mockResolvedValue([]);
             mem0Service.getAllMemories.mockRejectedValue(new Error(errorMessage));
 
             await expect(service.getUserMemories(mockUserId)).rejects.toThrow(
@@ -556,56 +528,92 @@ describe("MemoriesService", () => {
             );
         });
 
-        it("should handle errors when creating local memories from mem0", async () => {
+        it("should deduplicate memories by ID and content", async () => {
             const mockMem0Memories = [
                 {
                     id: "mem0_1",
                     memory: "Test memory",
                     user_id: mockUserId,
+                    metadata: {},
+                },
+                {
+                    id: "mem0_1", // Duplicate ID
+                    memory: "Test memory",
+                    user_id: mockUserId,
+                    metadata: {},
+                },
+                {
+                    id: "mem0_2",
+                    memory: "Test memory", // Duplicate content
+                    user_id: mockUserId,
+                    metadata: {},
                 },
             ];
 
-            const errorMessage = "Database write error";
-
             userService.findUser.mockResolvedValue(mockUser as any);
-            memoryRepository.findByUserId.mockResolvedValue([]);
             mem0Service.getAllMemories.mockResolvedValue(mockMem0Memories as any);
-            memoryRepository.create.mockRejectedValue(new Error(errorMessage));
 
-            await expect(service.getUserMemories(mockUserId)).rejects.toThrow(
-                `Failed to retrieve memories: ${errorMessage}`
+            const result = await service.getUserMemories(mockUserId);
+
+            // Should only return 1 unique memory (first occurrence)
+            expect(result.memories).toHaveLength(1);
+            expect(result.memories[0].memoryID).toBe("mem0_1");
+            expect(logger.debug).toHaveBeenCalledWith(
+                expect.stringContaining("Duplicate memory ID")
+            );
+            expect(logger.debug).toHaveBeenCalledWith(
+                expect.stringContaining("Duplicate memory content")
             );
         });
 
         it("should log info message when retrieving memories", async () => {
-            userService.findUser.mockResolvedValue(mockUser as any);
-            memoryRepository.findByUserId.mockResolvedValue(mockLocalMemories as any);
-
-            await service.getUserMemories(mockUserId);
-
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining(`Retrieving memories for user ${mockUserId}`)
-            );
-        });
-
-        it("should handle memories with empty sourceChatIds", async () => {
-            const memoryWithEmptyChats = [
+            const mockMem0Memories = [
                 {
-                    id: "mem_1",
-                    userId: mockUserId,
-                    content: "Test memory",
-                    mem0MemoryId: "mem0_1",
-                    sourceChatIds: [],
-                    createdAt: new Date("2024-01-01"),
+                    id: "mem0_1",
+                    memory: "Test memory",
+                    user_id: mockUserId,
+                    metadata: {},
                 },
             ];
 
             userService.findUser.mockResolvedValue(mockUser as any);
-            memoryRepository.findByUserId.mockResolvedValue(memoryWithEmptyChats as any);
+            mem0Service.getAllMemories.mockResolvedValue(mockMem0Memories as any);
+
+            await service.getUserMemories(mockUserId);
+
+            expect(logger.info).toHaveBeenCalledWith(
+                expect.stringContaining(`Retrieving memories for user ${mockUserId} from mem0.ai`)
+            );
+        });
+
+        it("should handle memories with empty or missing metadata", async () => {
+            const mockMem0Memories = [
+                {
+                    id: "mem0_1",
+                    memory: "Test memory",
+                    user_id: mockUserId,
+                    // No metadata
+                },
+                {
+                    id: "mem0_2",
+                    memory: "Another memory",
+                    user_id: mockUserId,
+                    metadata: {
+                        // Empty chat_id
+                    },
+                },
+            ];
+
+            userService.findUser.mockResolvedValue(mockUser as any);
+            mem0Service.getAllMemories.mockResolvedValue(mockMem0Memories as any);
 
             const result = await service.getUserMemories(mockUserId);
 
+            expect(result.memories).toHaveLength(2);
             expect(result.memories[0].relatedChats).toEqual([]);
+            expect(result.memories[1].relatedChats).toEqual([]);
+            // Should have createdAt (fallback to current time)
+            expect(result.memories[0].createdAt).toBeDefined();
         });
     });
 

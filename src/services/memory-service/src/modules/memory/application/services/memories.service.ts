@@ -2,7 +2,6 @@ import { Injectable, NotFoundException, Inject } from "@nestjs/common";
 import { Mem0Service } from "../../infrastructure/mem0.service";
 import { SynthesizeMemoriesDto } from "../dto/synthesize-memories.dto";
 import { CustomLoggerService } from "../../../../common/logger/logger.service";
-import { IMemoryRepository } from "../../domain/memory-repository.interface";
 import { IChatService } from "../../../chat/domain/chat-service.interface";
 import { IUserService } from "../../../user/domain/user-service.interface";
 
@@ -13,8 +12,6 @@ export class MemoriesService {
         private readonly chatService: IChatService,
         @Inject("IUserService")
         private readonly userService: IUserService,
-        @Inject("IMemoryRepository")
-        private readonly memoryRepository: IMemoryRepository,
         private readonly mem0Service: Mem0Service,
         private readonly logger: CustomLoggerService
     ) {
@@ -67,7 +64,7 @@ export class MemoriesService {
 
             // Queue the job in mem0 (fire-and-forget)
             // Note: This only queues the job - memories are created asynchronously by mem0
-            // They will be saved to the database when fetched via getUserMemories
+            // Memories are stored in mem0.ai and retrieved directly from there when requested
             const response = await this.mem0Service.addMemories(mem0Messages, chat.userId, metadata);
 
             const processingTime = Date.now() - startTime;
@@ -99,66 +96,62 @@ export class MemoriesService {
     }
 
     /**
-     * Retrieve memories for a user (local DB + sync from mem0.ai)
-     * Memories are created in the database when fetched from mem0.ai
+     * Retrieve memories for a user directly from mem0.ai
+     * No local database storage - mem0.ai is the single source of truth
      */
     async getUserMemories(userId: string) {
-        this.logger.info(`Retrieving memories for user ${userId}`);
+        this.logger.info(`Retrieving memories for user ${userId} from mem0.ai`);
 
         try {
             // Verify user exists
             const user = await this.userService.findUser(userId);
             if (!user) throw new NotFoundException(`User ${userId} not found`);
 
-            // Fetch memories from local DB
-            const localMemories = await this.memoryRepository.findByUserId(userId);
-            const localMem0Ids = new Set(localMemories.map(m => m.mem0MemoryId).filter(Boolean));
-
-            // Always check mem0.ai for any new memories that haven't been synced yet
-            this.logger.info(`Checking mem0.ai for memories for user ${userId}`);
+            // Fetch memories directly from mem0.ai
             const mem0Memories = await this.mem0Service.getAllMemories(userId);
+            this.logger.info(`Retrieved ${mem0Memories.length} memories from mem0.ai for user ${userId}`);
 
-            // Filter out memories that are already in local DB
-            const newMem0Memories = mem0Memories.filter(mem => !localMem0Ids.has(mem.id));
-
-            // Save any new memories from mem0.ai to local database
-            if (newMem0Memories.length > 0) {
-                this.logger.info(`Found ${newMem0Memories.length} new memories from mem0.ai, saving to database`);
-                try {
-                    const savedMemories = await Promise.all(
-                        newMem0Memories.map((mem) =>
-                            this.memoryRepository.create({
-                                userId,
-                                content: mem.memory,
-                                mem0MemoryId: mem.id,
-                                sourceChatIds: mem.metadata?.chat_id 
-                                    ? (Array.isArray(mem.metadata.chat_id) 
-                                        ? mem.metadata.chat_id 
-                                        : [mem.metadata.chat_id])
-                                    : [],
-                            })
-                        )
-                    );
-                    this.logger.info(`Synced ${savedMemories.length} new memories from mem0.ai to database`);
-                    
-                    // Add newly saved memories to the local memories list
-                    localMemories.push(...savedMemories.map((mem) => ({
-                        id: mem.id,
-                        content: mem.content,
-                        createdAt: mem.createdAt,
-                        sourceChatIds: mem.sourceChatIds,
-                    })));
-                } catch (saveError) {
-                    this.logger.warn(`Failed to save some memories from mem0.ai: ${saveError.message}`);
+            // Deduplicate by ID and content (in case mem0 returns duplicates)
+            const seenIds = new Set<string>();
+            const seenContent = new Set<string>();
+            const uniqueMemories = mem0Memories.filter(mem => {
+                if (!mem.id) {
+                    this.logger.warn(`Skipping memory without ID from mem0.ai`);
+                    return false;
                 }
-            }
+                
+                const normalizedContent = mem.memory.trim().toLowerCase();
+                
+                // Skip if we've already seen this ID or content
+                if (seenIds.has(mem.id)) {
+                    this.logger.debug(`Duplicate memory ID ${mem.id} found, skipping`);
+                    return false;
+                }
+                if (seenContent.has(normalizedContent)) {
+                    this.logger.debug(`Duplicate memory content found (ID: ${mem.id}), skipping`);
+                    return false;
+                }
+                
+                seenIds.add(mem.id);
+                seenContent.add(normalizedContent);
+                return true;
+            });
 
+            this.logger.info(`Returning ${uniqueMemories.length} unique memories for user ${userId}`);
+
+            // Transform mem0.ai response to expected format
             return {
-                memories: localMemories.map((mem) => ({
+                memories: uniqueMemories.map((mem) => ({
                     memoryID: mem.id,
-                    content: mem.content,
-                    createdAt: mem.createdAt.toISOString(),
-                    relatedChats: mem.sourceChatIds || [],
+                    content: mem.memory,
+                    createdAt: mem.metadata?.timestamp 
+                        ? new Date(mem.metadata.timestamp).toISOString()
+                        : new Date().toISOString(), // Fallback to current time if no timestamp
+                    relatedChats: mem.metadata?.chat_id 
+                        ? (Array.isArray(mem.metadata.chat_id) 
+                            ? mem.metadata.chat_id 
+                            : [mem.metadata.chat_id])
+                        : [],
                 })),
             };
         } catch (error) {
