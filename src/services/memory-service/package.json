@@ -14,7 +14,7 @@
     "stop": "bash scripts/stop.bash"
   },
   "dependencies": {
-    "@dataconnect/admin-generated": "file:../../../dataconnect-admin-generated",
+    "@dataconnect/admin-generated": "file:src/dataconnect-generated",
     "@nestjs/common": "^11.1.9",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.9",

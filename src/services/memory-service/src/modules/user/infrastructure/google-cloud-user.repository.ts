@@ -17,12 +17,7 @@ export class GoogleCloudUserRepository
     const dataConnectPath = require.resolve("@dataconnect/admin-generated");
     this.logger.info(`Data Connect module found at: ${dataConnectPath}`);
     
-    const firebaseAdminPath = require.resolve("firebase-admin", { 
-      paths: [require.resolve("@dataconnect/admin-generated")] 
-    });
-    this.logger.info(`Firebase Admin resolved at: ${firebaseAdminPath}`);
-    
-    const firebaseAdmin = require(firebaseAdminPath);
+    const firebaseAdmin = require("firebase-admin");
     
     if (firebaseAdmin.apps.length === 0) {
       firebaseAdmin.initializeApp({
