@@ -49,17 +49,3 @@ mutation CreateMessage(
     sequenceNumber: $sequenceNumber
   })
 }
-
-mutation CreateMemory(
-  $userId: String!,
-  $content: String!,
-  $mem0MemoryId: String,
-  $sourceChatIds: [String!]!
-) @auth(level: PUBLIC) {
-  memory_insert(data: {
-    userId: $userId,
-    content: $content,
-    mem0MemoryId: $mem0MemoryId,
-    sourceChatIds: $sourceChatIds
-  })
-}

@@ -24,13 +24,3 @@ type Message @table {
   createdAt: Timestamp! @default(expr: "request.time")
   updatedAt: Timestamp! @default(expr: "request.time")
 }
-
-type Memory @table {
-  id: UUID! @default(expr: "uuidV4()")
-  userId: String!
-  content: String!
-  mem0MemoryId: String
-  sourceChatIds: [String!]
-  createdAt: Timestamp! @default(expr: "request.time")
-  updatedAt: Timestamp! @default(expr: "request.time")
-}

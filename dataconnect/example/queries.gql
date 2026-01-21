@@ -48,12 +48,3 @@ query GetMessagesByChatId($chatId: String!) @auth(level: PUBLIC) {
     updatedAt
   }
 }
-
-query GetMemoriesByUserId($userId: String!) @auth(level: PUBLIC) {
-  memories(where: { userId: { eq: $userId } }, orderBy: [{ createdAt: DESC }]) {
-    id
-    content
-    createdAt
-    sourceChatIds
-  }
-}

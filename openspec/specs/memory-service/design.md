@@ -168,39 +168,40 @@ Data Connect insert mutations return only the key (ID), so repositories implemen
 
 ---
 
-### Decision 3: Dual Storage with mem0.ai
+### Decision 3: mem0.ai as Single Source of Truth for Memories
 
-**Choice**: Firebase Data Connect stores all data; mem0.ai stores semantic embeddings for memory synthesis
+**Choice**: mem0.ai stores all memories; no local database storage for memories
 
 **Rationale**:
 
--   **Data Connect as Source of Truth**: All conversations, messages, users, and memories are reliably stored
--   **mem0.ai for Semantic Search**: Leverages specialized vector DB for memory synthesis
--   **Separation of Concerns**: OLTP (Data Connect) vs. Semantic Search (mem0.ai)
--   **Resilience**: Service continues working if mem0.ai is unavailable (synthesis fails gracefully)
--   **Async Memory Creation**: Memories are created in Data Connect when fetched from mem0.ai, not during synthesis
+-   **Simplicity**: Single source of truth eliminates sync complexity and deduplication issues
+-   **mem0.ai for Semantic Search**: Leverages specialized vector DB for memory synthesis and retrieval
+-   **Separation of Concerns**: Data Connect for conversations/messages (OLTP), mem0.ai for memories (semantic search)
+-   **No Sync Overhead**: Direct fetch from mem0.ai eliminates database sync complexity
+-   **Cleaner Architecture**: No need to maintain dual storage or handle race conditions
 
 **Memory Flow**:
 
 1. Messages saved to Data Connect immediately
 2. Memory synthesis triggered on-demand (queues job to mem0.ai, returns immediately)
 3. mem0.ai processes conversation asynchronously and creates semantic memories
-4. When memories are requested, service checks mem0.ai for new memories and syncs them to Data Connect
-5. Memory retrieval returns from Data Connect (with fallback to mem0.ai if none locally)
+4. When memories are requested, service fetches directly from mem0.ai
+5. Memory retrieval returns directly from mem0.ai (no local storage)
 
 **Alternatives Considered**:
 
-1. **mem0.ai Only**: Rejected due to lack of control over data persistence
+1. **Dual Storage (Data Connect + mem0.ai)**: Rejected due to sync complexity, deduplication issues, and race conditions
 2. **Data Connect with vector search**: Rejected for MVP; Data Connect doesn't support vector operations
 3. **Separate Vector DB (Pinecone, Weaviate)**: Rejected in favor of mem0.ai's higher-level API
 
 **Trade-offs**:
 
--   ➕ Best tool for each job (GraphQL + vector search)
--   ➕ Resilient to mem0.ai outages
+-   ➕ Simpler architecture (no sync logic)
+-   ➕ Single source of truth (no inconsistencies)
+-   ➕ No deduplication complexity
 -   ➕ Async processing doesn't block API responses
--   ➖ Data synchronization complexity (deduplication needed)
--   ➖ Additional external dependency
+-   ➖ Requires mem0.ai to be available for memory retrieval
+-   ➖ API latency on every fetch (acceptable trade-off for simplicity)
 
 ---
 
@@ -510,7 +511,8 @@ DATA_CONNECT_EMULATOR_HOST=127.0.0.1:9399  # Auto-set in dev mode
 - `User`: id, name, role, timestamps
 - `Chat`: id, userId, title (nullable), timestamps
 - `Message`: id (UUID), chatId, content, sender, sequenceNumber, timestamps
-- `Memory`: id (UUID), userId, content, mem0MemoryId (nullable), sourceChatIds (array), timestamps
+
+**Note**: Memories are not stored in Data Connect - they are fetched directly from mem0.ai when requested.
 
 **Trade-offs**:
 
@@ -662,6 +664,11 @@ app.enableCors();
 │  │                │ Connect    │                │           │
 │  │                │ SDK        │                │           │
 │  │                └─────┬──────┘                │           │
+│  │                      │                       │           │
+│  │                ┌─────▼──────┐                │           │
+│  │                │  mem0.ai    │                │           │
+│  │                │  Service   │                │           │
+│  │                └─────┬──────┘                │           │
 │  └──────────────────────┼───────────────────────┘           │
 │                         │                                    │
 └─────────────────────────┼────────────────────────────────────┘
@@ -672,10 +679,10 @@ app.enableCors();
          │                             │       │   API        │
          │  ┌──────┐  ┌──────────┐   │       │              │
          │  │Users │  │  Chats   │   │       │  (Vector DB) │
-         │  └──────┘  └──────────┘   │◄──────┤              │
-         │  ┌──────┐  ┌──────────┐   │       │              │
-         │  │Msgs  │  │ Memories │   │       │              │
-         │  └──────┘  └──────────┘   │       └──────────────┘
+         │  └──────┘  └──────────┘   │       │  • Memories  │
+         │  ┌──────┐                 │◄──────┤  • Embeddings│
+         │  │Msgs  │                 │       │              │
+         │  └──────┘                 │       └──────────────┘
          └────────────────────────────┘
 ```
 
@@ -745,14 +752,12 @@ When memories fetched:
 │            │      │  Service   │      │   API     │
 └────────────┘      └─────┬──────┘      └─────┬─────┘
                           │                    │
-                          │ 5. getMemories     │
+                          │ 5. getAllMemories  │
+                          │                    │
                           │                    │
                           ▼                    │
-                    ┌──────────────────┐      │
-                    │ Firebase Data    │◄─────┘
-                    │ Connect          │
-                    │ (createMemory)   │
-                    └──────────────────┘
+                    [return memories] ◄─────────┘
+                    (directly from mem0.ai)
 ```
 
 ---
@@ -998,12 +1003,12 @@ Firebase Data Connect handles connection pooling automatically. The generated SD
 -   **Mitigation**: Queue synthesis jobs, batch processing
 -   **Monitoring**: Track mem0.ai usage
 
-### Trade-off: Dual Storage Complexity
+### Trade-off: mem0.ai Dependency
 
--   **Decision**: Firebase Data Connect + mem0.ai
--   **Cost**: Synchronization overhead, potential inconsistencies, deduplication needed
--   **Benefit**: Specialized tools for each use case (GraphQL + vector search)
--   **Mitigation**: Data Connect is source of truth; mem0.ai is derived. Memories synced when fetched.
+-   **Decision**: mem0.ai as single source of truth for memories (no local storage)
+-   **Cost**: Requires mem0.ai to be available for memory retrieval; API latency on every fetch
+-   **Benefit**: Simpler architecture, no sync complexity, no deduplication issues, single source of truth
+-   **Mitigation**: mem0.ai is reliable managed service; API latency is acceptable trade-off for simplicity
 
 ### Trade-off: Microservice Complexity
 
